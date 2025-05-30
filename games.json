@@ -1,0 +1,485 @@
+{
+    "games": [
+        {
+            "name": "Deep Learning",
+            "achievements": [
+                {
+                    "name": "Hour Hero",
+                    "description": "Log 10 hours in Deep Learning.",
+                    "type": "counter",
+                    "target": 10,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Consistent Coder",
+                    "description": "Log work for 3 consecutive days.",
+                    "type": "streak",
+                    "target": 3,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Project Completion",
+                    "description": "Complete the main project.",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.1",
+                    "description": "Complete Recitation 0.1: Python Programming + Pytorch",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.2",
+                    "description": "Complete Recitation 0.2: Numpy Fundamentals + JAX",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.3",
+                    "description": "Complete Recitation 0.3: Notebooks and Conda Environments",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.4",
+                    "description": "Complete Recitation 0.4: Pytorch",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.5",
+                    "description": "Complete Recitation 0.5: Computational Resources",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.6",
+                    "description": "Complete Recitation 0.6: Google Colab",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.7",
+                    "description": "Complete Recitation 0.7: AWS",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.8",
+                    "description": "Complete Recitation 0.8: Kaggle",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.9",
+                    "description": "Complete Recitation 0.9: PSC",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.10",
+                    "description": "Complete Recitation 0.10: Data Handling and Processing",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.11",
+                    "description": "Complete Recitation 0.11: Data Preprocessing",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.12",
+                    "description": "Complete Recitation 0.12: Debugging and Problem Solving",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.13",
+                    "description": "Complete Recitation 0.13: What to Do When Struggling",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.14",
+                    "description": "Complete Recitation 0.14: HWs and Project Workflow Management",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.15",
+                    "description": "Complete Recitation 0.15: Wandb",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.16",
+                    "description": "Complete Recitation 0.16: Git",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.17",
+                    "description": "Complete Recitation 0.17: Flow of the Project & How to Write a Report",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.18",
+                    "description": "Complete Recitation 0.18: Algorithmic Techniques",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.19",
+                    "description": "Complete Recitation 0.19: Block Processing",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.20",
+                    "description": "Complete Recitation 0.20: Model Logistics",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.21",
+                    "description": "Complete Recitation 0.21: Pipeline",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.22",
+                    "description": "Complete Recitation 0.22: Distributed Training",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.23",
+                    "description": "Complete Recitation 0.23: Saving & Loading Model (Checkpointing)",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Recitation 0.24",
+                    "description": "Complete Recitation 0.24: Cheating",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 1",
+                    "description": "Complete Lab 1: Your First MLP",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 2",
+                    "description": "Complete Lab 2: Debugging in Deep Learning Networks",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 3",
+                    "description": "Complete Lab 3: Network Optimizations",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 4",
+                    "description": "Complete Lab 4: Computing Derivatives and Autograd",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 5",
+                    "description": "Complete Lab 5: CNN: Basics",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 6",
+                    "description": "Complete Lab 6: CNN Classification and Verification",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 7",
+                    "description": "Complete Lab 7: RNN Basics",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 8",
+                    "description": "Complete Lab 8: Kaggle Competitions",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 9",
+                    "description": "Complete Lab 9: CTC, Beam Search",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 10",
+                    "description": "Complete Lab 10: Attention, MT, LAS",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 11",
+                    "description": "Complete Lab 11: Transformers",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 12",
+                    "description": "Complete Lab 12: VAE",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 13",
+                    "description": "Complete Lab 13: NF and Stable Diffusion",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 14",
+                    "description": "Complete Lab 14: GAN",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "Lab 15",
+                    "description": "Complete Lab 15: Graph Neural Networks",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW1 Bootcamp",
+                    "description": "Attend HW1 Bootcamp covering HW1P1, HW1P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW2 Bootcamp",
+                    "description": "Attend HW2 Bootcamp covering HW2P1, HW2P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW3 Bootcamp",
+                    "description": "Attend HW3 Bootcamp covering HW3P1, HW3P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW4 Bootcamp",
+                    "description": "Attend HW4 Bootcamp covering HW4P1, HW4P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW5 Bootcamp",
+                    "description": "Attend HW5 Bootcamp covering HW5 (no details provided)",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW1P1",
+                    "description": "Submit Assignment: HW1P1",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW1P2",
+                    "description": "Submit Assignment: HW1P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW1P1 Bonus",
+                    "description": "Submit Assignment: HW1P1 Bonus",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW1P1 Autograd",
+                    "description": "Submit Assignment: HW1P1 Autograd",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW2P1",
+                    "description": "Submit Assignment: HW2P1",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW2P2",
+                    "description": "Submit Assignment: HW2P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW2P1 Bonus",
+                    "description": "Submit Assignment: HW2P1 Bonus",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW2P1 Autograd",
+                    "description": "Submit Assignment: HW2P1 Autograd",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW3P1",
+                    "description": "Submit Assignment: HW3P1",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW3P2",
+                    "description": "Submit Assignment: HW3P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW4P1",
+                    "description": "Submit Assignment: HW4P1",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                },
+                {
+                    "name": "HW4P2",
+                    "description": "Submit Assignment: HW4P2",
+                    "type": "manual",
+                    "target": null,
+                    "unlocked": false,
+                    "linked_to": "CMU 11-785 Introduction to Deep Learning"
+                }
+            ]
+        },
+        {
+            "name": "Radar Research",
+            "achievements": []
+        }
+    ]
+}
