@@ -20,10 +20,12 @@ if not os.path.exists(LOG_FILE):
         writer = csv.writer(file)
         writer.writerow(["Date", "Project", "Task", "Hours"])
 
+# === REQUIREMENT 1: Data and Storage Changes ===
+# Modify the task_metadata.csv file structure to include a new column at the end named "Status".
 if not os.path.exists(METADATA_FILE):
     with open(METADATA_FILE, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Project", "Task", "Importance", "Urgency", "Deadline"])
+        writer.writerow(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
 
 if not os.path.exists(PROJECTS_FILE):
     with open(PROJECTS_FILE, mode='w', newline='') as file:
@@ -120,10 +122,9 @@ class WorkLoggerApp:
     def update_summary(self):
         now = datetime.now()
         year = now.year
-        # ISO week date:
         week_number = now.isocalendar()[1]
-        week = f"{year}-W{week_number:02d}" # Ensure two digits for week number
-        today_date = now.date() # Renamed for clarity
+        week = f"{year}-W{week_number:02d}"
+        today_date = now.date()
         stats = {
             "total": 0.0,
             "per_year": defaultdict(float),
@@ -136,16 +137,15 @@ class WorkLoggerApp:
             with open(LOG_FILE, mode='r', newline='') as file:
                 reader = csv.reader(file)
                 try:
-                    next(reader) # Skip header
+                    next(reader)
                 except StopIteration:
-                    pass # File is empty or only has header
+                    pass
                 for row in reader:
                     try:
-                        # Assuming date format from your log_work: "%Y-%m-%d %H:%M"
                         date_obj = datetime.strptime(row[0], "%Y-%m-%d %H:%M")
                         hours = float(row[3])
                     except (ValueError, IndexError):
-                        continue # Skip malformed rows
+                        continue
 
                     stats["total"] += hours
                     stats["dates"].add(date_obj.date())
@@ -154,7 +154,6 @@ class WorkLoggerApp:
                         stats["today"] += hours
 
                     y = date_obj.year
-                    # ISO week date for logged entries:
                     wn = date_obj.isocalendar()[1]
                     w = f"{y}-W{wn:02d}"
 
@@ -168,85 +167,230 @@ class WorkLoggerApp:
         self.avg_label.config(text=f"Avg per day: {avg:.1f} hrs")
         self.today_label.config(text=f"Today: {stats['today']:.1f} hrs")
 
-
+    # === REQUIREMENT 2: UI Enhancements in build_overview_tab ===
     def build_overview_tab(self):
         tab = self.tab_overview
-        self.meta_tree = ttk.Treeview(tab, columns=("Project", "Task", "Importance", "Urgency", "Deadline"), show="headings")
-        for col in ("Project", "Task", "Importance", "Urgency", "Deadline"):
-            self.meta_tree.heading(col, text=col)
-            self.meta_tree.column(col, width=120, anchor="w")
-        self.meta_tree.grid(row=0, column=0, columnspan=5, sticky="nsew", padx=5, pady=5) # Increased columnspan to 5
+
+        # --- Treeview for Task Metadata ---
+        # Modify Treeview to display new columns in the specified order.
+        cols = ("Priority", "Project", "Task", "Status", "Importance", "Urgency", "Deadline")
+        self.meta_tree = ttk.Treeview(tab, columns=cols, show="headings")
+
+        for col in cols:
+            # Add command for clickable column sorting.
+            self.meta_tree.heading(col, text=col, command=lambda _col=col: self.sort_overview_column(_col, False))
+            self.meta_tree.column(col, width=100, anchor="w")
+
+        # Adjust column widths for better readability.
+        self.meta_tree.column("Priority", width=60, anchor="center")
+        self.meta_tree.column("Task", width=250, anchor="w")
+        self.meta_tree.column("Status", width=80, anchor="center")
+
+        self.meta_tree.grid(row=0, column=0, columnspan=5, sticky="nsew", padx=5, pady=5)
         scrollbar = ttk.Scrollbar(tab, orient="vertical", command=self.meta_tree.yview)
         self.meta_tree.configure(yscroll=scrollbar.set)
-        scrollbar.grid(row=0, column=5, sticky="ns") # Adjusted column for scrollbar
+        scrollbar.grid(row=0, column=5, sticky="ns")
 
+        # Add a tag to visually distinguish completed tasks.
+        self.meta_tree.tag_configure('done', foreground='gray')
+
+        # --- Input Frame for Adding/Updating Tasks ---
         input_frame = ttk.Frame(tab)
         input_frame.grid(row=1, column=0, columnspan=5, sticky="ew", padx=5, pady=5)
 
         self.meta_entries = {}
+        rating_values = ["1", "2", "3", "4", "5"]
         labels = ("Project", "Task", "Importance", "Urgency", "Deadline")
+
         for idx, label_text in enumerate(labels):
             ttk.Label(input_frame, text=label_text + ":").grid(row=0, column=idx, sticky="w", padx=5, pady=2)
-            entry = ttk.Entry(input_frame, width=15)
+            # Replace Entry widgets with Comboboxes for specific fields.
+            if label_text == "Project":
+                entry = ttk.Combobox(input_frame, values=self.projects, width=15)
+            elif label_text in ["Importance", "Urgency"]:
+                entry = ttk.Combobox(input_frame, values=rating_values, width=15)
+            else:  # Task, Deadline
+                entry = ttk.Entry(input_frame, width=15)
+
             entry.grid(row=1, column=idx, sticky="ew", padx=5, pady=2)
             self.meta_entries[label_text] = entry
-            input_frame.grid_columnconfigure(idx, weight=1) # Allow entries to expand
+            input_frame.grid_columnconfigure(idx, weight=1)
 
+        # --- Button and Options Frame ---
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=2, column=0, columnspan=5, pady=10) # Centered buttons
+        button_frame.grid(row=2, column=0, columnspan=5, pady=10)
 
-        ttk.Button(button_frame, text="Add / Update Entry", command=self.add_or_update_metadata).pack(side=tk.LEFT, padx=10)
+        # Add a Checkbutton to hide completed tasks.
+        self.hide_completed_var = tk.BooleanVar(value=False)
+
+        # Rename button and add new controls.
+        ttk.Button(button_frame, text="Save Task", command=self.add_or_update_metadata).pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Delete Selected", command=self.delete_metadata_entry).pack(side=tk.LEFT, padx=10)
+        ttk.Button(button_frame, text="Toggle Status", command=self.toggle_task_status).pack(side=tk.LEFT, padx=10)
+        ttk.Checkbutton(button_frame, text="Hide Completed Tasks", variable=self.hide_completed_var, command=self.load_task_metadata).pack(side=tk.LEFT, padx=10)
 
-        tab.grid_columnconfigure(0, weight=1) # Allow meta_tree to expand
-        tab.grid_rowconfigure(0, weight=1) # Allow meta_tree to expand
+        # Configure grid weights for responsive resizing.
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
 
         self.load_task_metadata()
 
-    def load_logs(self):
-        for row in self.tree.get_children():
-            self.tree.delete(row)
-        if not os.path.exists(LOG_FILE): return
-        with open(LOG_FILE, mode='r', newline='') as file:
+    # === REQUIREMENT 3: Functional Logic Implementation ===
+    # --- Clickable Column Sorting ---
+    def sort_overview_column(self, col, reverse):
+        """Sorts the overview treeview by a column and updates the header command."""
+        self.load_task_metadata(sort_col=col, reverse=reverse)
+        # Update the column header's command to sort in the opposite direction on the next click.
+        self.meta_tree.heading(col, text=col, command=lambda _col=col: self.sort_overview_column(_col, not reverse))
+
+    # --- Task Status Management ---
+    def toggle_task_status(self):
+        """Toggles the status of the selected task between 'To-Do' and 'Done'."""
+        selected_items = self.meta_tree.selection()
+        if not selected_items:
+            messagebox.showwarning("No Selection", "Please select a task to toggle its status.")
+            return
+
+        selected_item = self.meta_tree.item(selected_items[0])
+        # Retrieve task identifiers from the selected Treeview row.
+        # Treeview columns: Priority, Project, Task, ...
+        project_name = selected_item['values'][1]
+        task_name = selected_item['values'][2]
+
+        all_rows = []
+        header = []
+        if os.path.exists(METADATA_FILE):
+            with open(METADATA_FILE, 'r', newline='') as file:
+                reader = csv.reader(file)
+                try:
+                    header = next(reader)
+                    all_rows.append(header)
+                    # CSV columns: Project, Task, Importance, Urgency, Deadline, Status
+                    for row in reader:
+                        if len(row) < 6: continue
+                        if row[0] == project_name and row[1] == task_name:
+                            current_status = row[5]
+                            new_status = "Done" if current_status in ["To-Do", ""] else "To-Do"
+                            row[5] = new_status
+                        all_rows.append(row)
+                except StopIteration:
+                    pass
+
+        # Rewrite the CSV file with the updated status.
+        with open(METADATA_FILE, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(all_rows)
+
+        self.load_task_metadata()
+
+    # --- Priority Calculation & Data Loading ---
+    def load_task_metadata(self, sort_col="Priority", reverse=True):
+        """Loads task data, calculates priority, filters, sorts, and displays it."""
+        for row in self.meta_tree.get_children():
+            self.meta_tree.delete(row)
+
+        if not os.path.exists(METADATA_FILE): return
+
+        all_tasks = []
+        with open(METADATA_FILE, mode='r', newline='') as file:
             reader = csv.reader(file)
             try:
-                next(reader) # Skip header
+                header = next(reader)
+                col_map = {name: idx for idx, name in enumerate(header)}
+                if "Status" not in col_map: # Handle old file format gracefully
+                    col_map["Status"] = -1
+                
                 for row in reader:
-                    if len(row) == 4: # Ensure row has correct number of columns
-                        self.tree.insert("", tk.END, values=row)
-            except StopIteration:
-                pass # File is empty
+                    if len(row) < 5: continue
 
+                    # Filter based on the "Hide Completed Tasks" checkbox.
+                    status = row[col_map["Status"]] if col_map["Status"] != -1 and len(row) > col_map["Status"] else "To-Do"
+                    if self.hide_completed_var.get() and status == "Done":
+                        continue
+
+                    # Calculate Priority score. Default to 0 if values are invalid.
+                    try:
+                        importance = int(row[col_map["Importance"]])
+                        urgency = int(row[col_map["Urgency"]])
+                        priority = importance * urgency
+                    except (ValueError, IndexError):
+                        priority = 0
+
+                    task_data = {
+                        "Priority": priority,
+                        "Project": row[col_map["Project"]],
+                        "Task": row[col_map["Task"]],
+                        "Status": status,
+                        "Importance": row[col_map["Importance"]],
+                        "Urgency": row[col_map["Urgency"]],
+                        "Deadline": row[col_map["Deadline"]]
+                    }
+                    all_tasks.append(task_data)
+            except (StopIteration, ValueError):
+                return
+
+        # Sort the data based on the selected column and direction.
+        if sort_col == "Priority":
+            all_tasks.sort(key=lambda x: x.get(sort_col, 0), reverse=reverse)
+        else:
+            all_tasks.sort(key=lambda x: str(x.get(sort_col, "")).lower(), reverse=reverse)
+
+        # Insert sorted data into the Treeview.
+        for task in all_tasks:
+            values = (
+                task["Priority"], task["Project"], task["Task"], task["Status"],
+                task["Importance"], task["Urgency"], task["Deadline"]
+            )
+            # Use the 'done' tag for a visual indicator on completed tasks.
+            tag = 'done' if task["Status"] == "Done" else ''
+            self.meta_tree.insert("", tk.END, values=values, tags=(tag,))
+    
+    # --- Saving and Updating Data ---
     def add_or_update_metadata(self):
-        new_entry_values = [self.meta_entries[field].get() for field in ("Project", "Task", "Importance", "Urgency", "Deadline")]
-        if not new_entry_values[0] or not new_entry_values[1]: # Project and Task are required
+        """Saves a new task or updates an existing one, preserving its status."""
+        project = self.meta_entries["Project"].get()
+        task = self.meta_entries["Task"].get()
+        importance = self.meta_entries["Importance"].get()
+        urgency = self.meta_entries["Urgency"].get()
+        deadline = self.meta_entries["Deadline"].get()
+
+        if not project or not task:
             messagebox.showwarning("Missing Data", "Project and Task fields are required.")
             return
+        
+        # New task data without status.
+        new_entry_values_base = [project, task, importance, urgency, deadline]
 
         all_rows = []
         updated = False
+        original_status = "To-Do"  # Default status for new tasks.
+
         if os.path.exists(METADATA_FILE):
             with open(METADATA_FILE, 'r', newline='') as file:
                 reader = csv.reader(file)
                 try:
                     headers = next(reader)
                     all_rows.append(headers)
+                    if "Status" not in headers: headers.append("Status")
+                    
                     for row in reader:
-                        if row[0] == new_entry_values[0] and row[1] == new_entry_values[1]:
-                            all_rows.append(new_entry_values) # Update existing
+                        # Ensure row is long enough before accessing indices
+                        if len(row) >= 2 and row[0] == project and row[1] == task:
+                            # Preserve the original status when updating.
+                            original_status = row[5] if len(row) > 5 else "To-Do"
                             updated = True
+                            # The updated row will be added later, so we skip the old one.
                         else:
                             all_rows.append(row)
-                except StopIteration: # Empty file or only headers
-                    if not all_rows: # if headers were not even read
-                         all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline"])
+                except StopIteration:
+                    if not all_rows:
+                        all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
+        else:
+            all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
 
-
-        if not updated:
-            all_rows.append(new_entry_values) # Add as new entry
-        elif not os.path.exists(METADATA_FILE) or not all_rows: # if file didn't exist or was empty
-             all_rows = [["Project", "Task", "Importance", "Urgency", "Deadline"], new_entry_values]
-
+        # Append the new or updated row with the correct status.
+        final_entry = new_entry_values_base + [original_status]
+        all_rows.append(final_entry)
 
         with open(METADATA_FILE, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -256,28 +400,17 @@ class WorkLoggerApp:
         for entry_widget in self.meta_entries.values():
             entry_widget.delete(0, tk.END)
 
-
-    def load_task_metadata(self):
-        for row in self.meta_tree.get_children():
-            self.meta_tree.delete(row)
-        if not os.path.exists(METADATA_FILE): return
-        with open(METADATA_FILE, mode='r', newline='') as file:
-            reader = csv.reader(file)
-            try:
-                next(reader) # Skip header
-                for row in reader:
-                    if len(row) == 5: # Ensure row has correct number of columns
-                        self.meta_tree.insert("", tk.END, values=row)
-            except StopIteration:
-                pass # File is empty
-
-
     def delete_metadata_entry(self):
+        """Deletes a selected task from the metadata file."""
         selected_items = self.meta_tree.selection()
         if not selected_items:
             messagebox.showwarning("No Selection", "Please select a metadata entry to delete.")
             return
-        selected_values = self.meta_tree.item(selected_items[0])["values"]
+            
+        selected_item = self.meta_tree.item(selected_items[0])
+        # Identify the row to delete by its Project and Task name.
+        project_to_delete = selected_item['values'][1]
+        task_to_delete = selected_item['values'][2]
 
         rows_to_keep = []
         header = []
@@ -287,18 +420,32 @@ class WorkLoggerApp:
                 try:
                     header = next(reader)
                     for row in reader:
-                        # Compare string representations to handle potential type mismatches from Treeview
-                        if [str(x) for x in row] != [str(x) for x in selected_values]:
-                            rows_to_keep.append(row)
-                except StopIteration: # File was empty or only had a header
+                        if len(row) >= 2:
+                            if not (row[0] == project_to_delete and row[1] == task_to_delete):
+                                rows_to_keep.append(row)
+                except StopIteration:
                     pass
 
         with open(METADATA_FILE, 'w', newline='') as file:
             writer = csv.writer(file)
-            if header: # Write header only if it was read
+            if header:
                 writer.writerow(header)
             writer.writerows(rows_to_keep)
         self.load_task_metadata()
+
+    def load_logs(self):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+        if not os.path.exists(LOG_FILE): return
+        with open(LOG_FILE, mode='r', newline='') as file:
+            reader = csv.reader(file)
+            try:
+                next(reader) 
+                for row in reader:
+                    if len(row) == 4:
+                        self.tree.insert("", tk.END, values=row)
+            except StopIteration:
+                pass
 
     def log_work(self):
         project = self.project_var.get()
@@ -323,13 +470,13 @@ class WorkLoggerApp:
 
         with open(LOG_FILE, mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([date_str, project, task, f"{hours:.2f}"]) # Store hours with 2 decimal places
+            writer.writerow([date_str, project, task, f"{hours:.2f}"])
 
         self.task_entry.delete(0, tk.END)
         self.hours_entry.delete(0, tk.END)
         self.load_logs()
         self.update_summary()
-        self.check_achievements_on_log(project, date_str) # Check achievements
+        self.check_achievements_on_log(project, date_str)
         messagebox.showinfo("Logged", f"Work logged for {project}.")
 
 
@@ -349,8 +496,6 @@ class WorkLoggerApp:
                 try:
                     header = next(reader)
                     for row in reader:
-                        # Convert row to string list for comparison, like in edit_selected
-                        # And Treeview values are already strings or can be treated as such for comparison
                         is_selected_for_deletion = False
                         for sel_val_list in selected_values_to_delete:
                             if [str(x) for x in row] == [str(x) for x in sel_val_list]:
@@ -358,25 +503,25 @@ class WorkLoggerApp:
                                 break
                         if not is_selected_for_deletion:
                             all_rows.append(row)
-                except StopIteration: # Empty file
+                except StopIteration:
                     pass
 
         with open(LOG_FILE, 'w', newline='') as file:
             writer = csv.writer(file)
-            if header: # Write header only if it was read
+            if header:
                 writer.writerow(header)
             writer.writerows(all_rows)
 
-        self.load_logs() # Reload the log display
-        self.update_summary() # Update the summary statistics
+        self.load_logs()
+        self.update_summary()
 
     def edit_selected(self):
         selected_item_id = self.tree.selection()
         if not selected_item_id:
             messagebox.showwarning("No selection", "Please select a log entry to edit.")
             return
-        item_id = selected_item_id[0] # Assuming single selection for edit
-        old_values = self.tree.item(item_id)["values"] # These are strings
+        item_id = selected_item_id[0]
+        old_values = self.tree.item(item_id)["values"]
 
         edit_win = tk.Toplevel(self.root)
         edit_win.title("Edit Log Entry")
@@ -402,19 +547,16 @@ class WorkLoggerApp:
         def save_edit():
             new_values = [var.get() for var in entries_vars]
 
-            # Validate Date
             try:
                 datetime.strptime(new_values[0], "%Y-%m-%d %H:%M")
             except ValueError:
                 messagebox.showerror("Input Error", "Invalid date format. Please use YYYY-MM-DD HH:MM.", parent=edit_win)
                 return
 
-            # Validate Project
             if not new_values[1]:
                  messagebox.showerror("Input Error", "Project cannot be empty.", parent=edit_win)
                  return
 
-            # Validate Task and Hours
             if not new_values[2] or not new_values[3]:
                 messagebox.showerror("Input Error", "Task and Hours cannot be empty.", parent=edit_win)
                 return
@@ -423,7 +565,7 @@ class WorkLoggerApp:
                 if hours <= 0:
                     messagebox.showerror("Input Error", "Hours must be a positive number.", parent=edit_win)
                     return
-                new_values[3] = f"{hours:.2f}" # Format hours
+                new_values[3] = f"{hours:.2f}"
             except ValueError:
                 messagebox.showerror("Input Error", "Hours must be a valid number.", parent=edit_win)
                 return
@@ -436,21 +578,20 @@ class WorkLoggerApp:
                     try:
                         header = next(reader)
                         for line_values in reader:
-                            # Compare string representations as Treeview values are strings
                             if [str(x) for x in line_values] == [str(x) for x in old_values]:
-                                all_rows.append(new_values) # Replace with new values
+                                all_rows.append(new_values)
                             else:
                                 all_rows.append(line_values)
-                    except StopIteration: # File empty or only header
+                    except StopIteration:
                         pass
-            else: # Should not happen if we are editing an entry, but as a safeguard
+            else:
                 messagebox.showerror("Error", "Log file not found.", parent=edit_win)
                 return
 
 
             with open(LOG_FILE, 'w', newline='') as file:
                 writer = csv.writer(file)
-                if header: # Write header only if it was read
+                if header:
                     writer.writerow(header)
                 writer.writerows(all_rows)
 
@@ -494,24 +635,23 @@ class WorkLoggerApp:
             new_proj = new_proj_entry.get().strip()
             if new_proj and new_proj not in self.projects:
                 self.projects.append(new_proj)
-                self.projects.sort() # Keep it sorted
+                self.projects.sort()
                 project_listbox.insert(tk.END, new_proj)
-                # Resort listbox
+
                 current_list = list(project_listbox.get(0, tk.END))
                 current_list.sort()
                 project_listbox.delete(0, tk.END)
                 for item in current_list:
                     project_listbox.insert(tk.END, item)
 
-                self.project_combo['values'] = self.projects # Update combobox in main tab
-                if self.projects: # Reselect if possible
+                self.project_combo['values'] = self.projects
+                if self.projects:
                     try:
                         self.project_combo.current(self.projects.index(self.project_var.get()))
                     except ValueError:
                          self.project_combo.current(0)
 
 
-                # Persist the new project list
                 with open(PROJECTS_FILE, mode='w', newline='') as file:
                     writer = csv.writer(file)
                     for p_item in self.projects:
@@ -530,22 +670,15 @@ class WorkLoggerApp:
             if selected_indices:
                 proj_to_remove = project_listbox.get(selected_indices[0])
 
-                # Basic check for default/undeletable projects (customize as needed)
-                # default_projects = ["Other"] # Example
-                # if proj_to_remove in default_projects:
-                #     messagebox.showinfo("Info", f"Cannot remove '{proj_to_remove}'. It's a default project.", parent=win)
-                #     return
-
                 if messagebox.askyesno("Confirm Delete", f"Are you sure you want to remove project '{proj_to_remove}'?", parent=win):
                     self.projects.remove(proj_to_remove)
                     project_listbox.delete(selected_indices[0])
                     self.project_combo['values'] = self.projects
                     if self.projects:
-                         self.project_combo.current(0) # Reset to first project
+                         self.project_combo.current(0)
                     else:
-                        self.project_combo.set('') # Clear if no projects left
+                        self.project_combo.set('')
 
-                    # Persist the updated project list
                     with open(PROJECTS_FILE, mode='w', newline='') as file:
                         writer = csv.writer(file)
                         for p_item in self.projects:
@@ -558,15 +691,12 @@ class WorkLoggerApp:
 
 
     def show_statistics(self):
-        # Ensure matplotlib and mdates are imported locally if not at the top level of the class
-        # import matplotlib.pyplot as plt # Already imported
-        import matplotlib.dates as mdates # Already imported
-        from collections import defaultdict # Already imported
+        import matplotlib.dates as mdates
 
         project_hours_total = defaultdict(float)
-        weekly_hours = defaultdict(lambda: defaultdict(float)) # Project hours per week
-        cumulative_per_project = defaultdict(list) # (date, cumulative_hours)
-        all_entries = [] # To store (date_obj, project, hours)
+        weekly_hours = defaultdict(lambda: defaultdict(float))
+        cumulative_per_project = defaultdict(list)
+        all_entries = []
 
         if not os.path.exists(LOG_FILE):
             messagebox.showinfo("No Data", "Log file is empty or does not exist.")
@@ -575,17 +705,17 @@ class WorkLoggerApp:
         with open(LOG_FILE, mode='r', newline='') as file:
             reader = csv.reader(file)
             try:
-                next(reader) # Skip header
+                next(reader)
                 for row in reader:
-                    if len(row) < 4: continue # Skip malformed rows
+                    if len(row) < 4: continue
                     try:
                         date_obj = datetime.strptime(row[0], "%Y-%m-%d %H:%M")
                         project = row[1]
                         hours = float(row[3])
                         all_entries.append((date_obj, project, hours))
                     except ValueError:
-                        continue # Skip rows with bad date or hours format
-            except StopIteration: # Empty file
+                        continue
+            except StopIteration:
                 messagebox.showinfo("No Data", "No data logged yet.")
                 return
 
@@ -593,28 +723,24 @@ class WorkLoggerApp:
             messagebox.showinfo("No Data", "No valid data found in logs for statistics.")
             return
 
-        all_entries.sort(key=lambda x: x[0]) # Sort by date
+        all_entries.sort(key=lambda x: x[0])
 
-        # Calculate totals and weekly data
         current_cumulative_totals = defaultdict(float)
         for date_obj, project, hours in all_entries:
             project_hours_total[project] += hours
 
-            # Use isocalendar for week: (year, week_number, weekday)
             year, week_num, _ = date_obj.isocalendar()
-            week_str = f"{year}-W{week_num:02d}" # Format: YYYY-Www
+            week_str = f"{year}-W{week_num:02d}"
             weekly_hours[week_str][project] += hours
 
             current_cumulative_totals[project] += hours
             cumulative_per_project[project].append((date_obj, current_cumulative_totals[project]))
 
-        # --- Plot 1: Total Hours per Project (Bar Chart) ---
         if project_hours_total:
-            plt.figure(figsize=(10, 6)) # Adjusted size
+            plt.figure(figsize=(10, 6))
             projects_sorted_names = sorted(project_hours_total.keys())
             total_hrs_sorted = [project_hours_total[name] for name in projects_sorted_names]
-            # projects = list(project_hours_total.keys())
-            # total_hrs = list(project_hours_total.values())
+
             plt.bar(projects_sorted_names, total_hrs_sorted, color='skyblue')
             plt.title("Total Hours per Project")
             plt.xlabel("Project")
@@ -624,14 +750,12 @@ class WorkLoggerApp:
         else:
             print("No data for total hours per project plot.")
 
-
-        # --- Plot 2: Weekly Hours per Project (Stacked Bar Chart) ---
         if weekly_hours:
-            plt.figure(figsize=(12, 7)) # Adjusted size
+            plt.figure(figsize=(12, 7))
             sorted_weeks = sorted(weekly_hours.keys())
             all_projects_in_log = sorted(list(set(proj for week_data in weekly_hours.values() for proj in week_data)))
 
-            bottom_values = [0] * len(sorted_weeks) # Initialize bottom for stacking
+            bottom_values = [0] * len(sorted_weeks)
 
             for project_name in all_projects_in_log:
                 project_weekly_hours = [weekly_hours[week].get(project_name, 0) for week in sorted_weeks]
@@ -641,22 +765,19 @@ class WorkLoggerApp:
             plt.title("Weekly Hours per Project (Stacked)")
             plt.xlabel("Week (YYYY-Www)")
             plt.ylabel("Hours")
-            plt.xticks(rotation=70, ha="right") # More rotation for week labels
+            plt.xticks(rotation=70, ha="right")
             plt.legend(title="Projects", bbox_to_anchor=(1.05, 1), loc='upper left')
             plt.tight_layout()
-            plt.subplots_adjust(right=0.85) # Adjust layout to make space for legend
+            plt.subplots_adjust(right=0.85)
         else:
             print("No data for weekly hours plot.")
 
-
-        # --- Plot 3: Cumulative Work Hours Over Time (Line Chart) ---
         if cumulative_per_project:
-            plt.figure(figsize=(12, 7)) # Adjusted size
+            plt.figure(figsize=(12, 7))
             projects_cumulative_sorted_names = sorted(cumulative_per_project.keys())
             for project_name in projects_cumulative_sorted_names:
-            # for project_name, data_points in cumulative_per_project.items():
                 data_points = cumulative_per_project[project_name]
-                if data_points: # Ensure there are points to plot
+                if data_points:
                     dates = [dp[0] for dp in data_points]
                     cum_hours = [dp[1] for dp in data_points]
                     plt.plot(dates, cum_hours, marker='o', linestyle='-', label=project_name)
@@ -665,7 +786,7 @@ class WorkLoggerApp:
             plt.xlabel("Date")
             plt.ylabel("Cumulative Hours")
             plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-            plt.gcf().autofmt_xdate(rotation=45) # Auto format date labels
+            plt.gcf().autofmt_xdate(rotation=45)
             plt.legend(title="Projects")
             plt.grid(True, linestyle='--', alpha=0.7)
             plt.tight_layout()
@@ -688,7 +809,7 @@ class WorkLoggerApp:
         with open(LOG_FILE, mode='r', newline='') as file:
             reader = csv.reader(file)
             try:
-                next(reader) # Skip header
+                next(reader)
                 for row in reader:
                     if len(row) < 4: continue
                     try:
@@ -696,7 +817,7 @@ class WorkLoggerApp:
                         hours = float(row[3])
                         stats[project] += hours
                     except ValueError:
-                        continue # Skip row if hours not a number
+                        continue
             except StopIteration:
                 messagebox.showinfo("No Data", "No data logged yet to export.")
                 return
@@ -719,21 +840,20 @@ class WorkLoggerApp:
         y_position = height - 120
         line_height = 20
 
-        # Table Header
         c.setFont("Helvetica-Bold", 12)
         c.drawString(60, y_position, "Project")
         c.drawString(300, y_position, "Total Hours")
         y_position -= (line_height * 0.5)
-        c.line(50, y_position, width - 50, y_position) # Horizontal line
+        c.line(50, y_position, width - 50, y_position)
         y_position -= (line_height * 0.75)
 
 
         c.setFont("Helvetica", 11)
         total_overall_hours = 0
         for project, hours in sorted(stats.items()):
-            if y_position < 60: # Check for page break
+            if y_position < 60:
                 c.showPage()
-                c.setFont("Helvetica-Bold", 12) # Reset font for new page header (optional)
+                c.setFont("Helvetica-Bold", 12)
                 c.drawString(60, height - 50, "Project (Continued)")
                 c.drawString(300, height-50, "Total Hours (Continued)")
                 y_position = height - 80
@@ -745,7 +865,6 @@ class WorkLoggerApp:
             total_overall_hours += hours
             y_position -= line_height
 
-        # Total line
         y_position -= (line_height * 0.5)
         c.line(50, y_position, width - 50, y_position)
         y_position -= (line_height * 0.75)
@@ -761,11 +880,11 @@ class WorkLoggerApp:
         try:
             with open(GAMES_FILE, 'r') as f:
                 self.games_data = json.load(f)
-                if "games" not in self.games_data: # Ensure basic structure
+                if "games" not in self.games_data:
                     self.games_data["games"] = []
         except (FileNotFoundError, json.JSONDecodeError):
             self.games_data = {"games": []}
-            self.save_games_data() # Create the file with default structure
+            self.save_games_data()
 
     def save_games_data(self):
         with open(GAMES_FILE, 'w') as f:
@@ -773,13 +892,12 @@ class WorkLoggerApp:
 
     def build_achievements_tab(self):
         tab = self.tab_achievements
-        tab.columnconfigure(0, weight=1) # Game selection column
-        tab.columnconfigure(1, weight=3) # Achievements display column
-        tab.rowconfigure(1, weight=1) # Achievements listbox row (this might need to be row 0 of ach_frame for treeview)
+        tab.columnconfigure(0, weight=1)
+        tab.columnconfigure(1, weight=3)
+        tab.rowconfigure(1, weight=1)
 
-        # --- Game Selection and Management ---
         game_frame = ttk.LabelFrame(tab, text="Games")
-        game_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=10, sticky="nswe") # Span rows to make space for summary
+        game_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=10, sticky="nswe")
         game_frame.columnconfigure(0, weight=1)
 
         ttk.Label(game_frame, text="Select Game:").pack(pady=(5,2), anchor="w", padx=5)
@@ -794,9 +912,8 @@ class WorkLoggerApp:
         ttk.Button(game_btn_frame, text="Edit Game", command=self.edit_game).pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(game_btn_frame, text="Delete Game", command=self.delete_game).pack(side="left", expand=True, fill="x", padx=2)
 
-        # --- Game Summary Frame --- Added this section
         self.game_summary_frame = ttk.LabelFrame(game_frame, text="Summary")
-        self.game_summary_frame.pack(fill="x", pady=(10,5), padx=5, anchor="n") # anchor to north
+        self.game_summary_frame.pack(fill="x", pady=(10,5), padx=5, anchor="n")
         
         self.summary_total_ach_label = ttk.Label(self.game_summary_frame, text="Total: 0")
         self.summary_total_ach_label.pack(anchor="w", padx=5, pady=1)
@@ -804,14 +921,11 @@ class WorkLoggerApp:
         self.summary_unlocked_ach_label.pack(anchor="w", padx=5, pady=1)
         self.summary_locked_ach_label = ttk.Label(self.game_summary_frame, text="Locked: 0")
         self.summary_locked_ach_label.pack(anchor="w", padx=5, pady=1)
-        # Initially hide or disable if no game is selected? Or just show 0s. Current approach is 0s.
 
-        # --- Achievements Display and Management ---
         ach_frame = ttk.LabelFrame(tab, text="Achievements")
-        # ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe") # Original
-        ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe") # Adjusted to ensure it takes available space.
+        ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe")
         ach_frame.columnconfigure(0, weight=1)
-        ach_frame.rowconfigure(0, weight=1) # Ensure treeview expands
+        ach_frame.rowconfigure(0, weight=1)
 
 
         self.achievements_tree = ttk.Treeview(ach_frame, columns=("Name", "Description", "Type", "Target", "Linked Project", "Unlocked"), show="headings")
@@ -844,7 +958,7 @@ class WorkLoggerApp:
         ttk.Button(ach_btn_frame, text="Delete Achievement", command=self.delete_achievement).pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(ach_btn_frame, text="Toggle Unlock", command=self.toggle_manual_unlock_achievement).pack(side="left", expand=True, fill="x", padx=2)
 
-        self.update_game_summary_display(0, 0, 0) # Initialize summary display
+        self.update_game_summary_display(0, 0, 0)
 
 
     def update_game_combo_values(self):
@@ -856,10 +970,10 @@ class WorkLoggerApp:
                 self.game_var.set(current_selection)
             else:
                 self.game_var.set(game_names[0])
-            self.on_game_selected() # Trigger loading achievements for the first game or current
+            self.on_game_selected()
         else:
             self.game_var.set("")
-            self.on_game_selected() # Clear achievements and summary if no games
+            self.on_game_selected()
 
 
     def on_game_selected(self, event=None):
@@ -918,9 +1032,7 @@ class WorkLoggerApp:
                 return
             self.games_data.setdefault("games", []).append({"name": game_name, "achievements": []})
             self.save_games_data()
-            self.update_game_combo_values() # This will set the new game and call on_game_selected
-            # self.game_var.set(game_name) # Select the newly added game - update_game_combo handles this
-            # self.on_game_selected()
+            self.update_game_combo_values()
             messagebox.showinfo("Success", f"Game '{game_name}' added.", parent=self.root)
 
 
@@ -946,9 +1058,7 @@ class WorkLoggerApp:
                     game["name"] = new_game_name
                     break
             self.save_games_data()
-            self.update_game_combo_values() # This will refresh list and reselect, then call on_game_selected
-            # self.game_var.set(new_game_name) # Reselect with new name - handled by update_game_combo
-            # self.on_game_selected()
+            self.update_game_combo_values()
             messagebox.showinfo("Success", f"Game '{selected_game_name}' updated to '{new_game_name}'.", parent=self.root)
 
 
@@ -961,8 +1071,7 @@ class WorkLoggerApp:
         if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the game '{selected_game_name}' and all its achievements?", parent=self.root):
             self.games_data["games"] = [g for g in self.games_data.get("games", []) if g["name"] != selected_game_name]
             self.save_games_data()
-            # self.game_var.set("") # Clear selection - update_game_combo will handle this better
-            self.update_game_combo_values() # This will also refresh achievements list (to empty if selected was last)
+            self.update_game_combo_values()
             messagebox.showinfo("Deleted", f"Game '{selected_game_name}' deleted.", parent=self.root)
 
 
@@ -984,7 +1093,7 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name = item_values[0] # Name is the first column in the tree
+        ach_name = item_values[0]
 
         game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == selected_game_name), None)
         if game_obj:
@@ -997,12 +1106,11 @@ class WorkLoggerApp:
 
     def _open_achievement_dialog(self, game_name, achievement_index=None, initial_data=None):
         dialog = tk.Toplevel(self.root)
-        dialog.title("Edit Achievement" if initial_data else "Add Achievement") # Corrected title logic
+        dialog.title("Edit Achievement" if initial_data else "Add Achievement")
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)
 
-        # Fields: name, description, type, target, linked_to
         fields_setup = [
             {"label": "Name", "key": "name", "widget": "entry"},
             {"label": "Description", "key": "description", "widget": "entry"},
@@ -1022,12 +1130,11 @@ class WorkLoggerApp:
                 entry_widget = ttk.Combobox(dialog, textvariable=var, values=field_info["values"], state="readonly", width=38)
                 if initial_data and initial_data.get(field_info["key"]) in field_info["values"]:
                     var.set(initial_data.get(field_info["key"]))
-                elif field_info["values"]: # Set default if no initial data or initial data not in values
+                elif field_info["values"]:
                      var.set(field_info["values"][0])
-            else: # entry
+            else:
                 entry_widget = ttk.Entry(dialog, textvariable=var, width=40)
                 if initial_data:
-                    # Handle target = None for manual types gracefully
                     initial_val = initial_data.get(field_info["key"], "")
                     var.set(str(initial_val) if initial_val is not None else "")
 
@@ -1037,31 +1144,31 @@ class WorkLoggerApp:
 
 
         def on_save():
-            ach_data = {key: var.get().strip() for key, var in entries_vars.items()} # Strip all string vars
+            ach_data = {key: var.get().strip() for key, var in entries_vars.items()}
             
             if not ach_data["name"]:
                 messagebox.showerror("Input Error", "Achievement name cannot be empty.", parent=dialog)
                 return
 
             ach_type = ach_data.get("type")
-            target_str = ach_data.get("target", "") # Already stripped
+            target_str = ach_data.get("target", "")
 
             if ach_type in ["counter", "streak"]:
-                if not target_str: # Target can be 0 for some reason, but not empty for these types
+                if not target_str:
                     messagebox.showerror("Input Error", f"Target is required and must be a positive integer for '{ach_type}' achievements.", parent=dialog)
                     return
                 try:
                     ach_data["target"] = int(target_str)
-                    if ach_data["target"] <= 0 and ach_type in ["counter", "streak"]: # Streaks/Counters typically positive
+                    if ach_data["target"] <= 0 and ach_type in ["counter", "streak"]:
                          messagebox.showerror("Input Error", "Target must be a positive integer for counter/streak.", parent=dialog)
                          return
                 except ValueError:
                     messagebox.showerror("Input Error", "Target must be a valid integer for counter/streak.", parent=dialog)
                     return
-            else: # manual
-                ach_data["target"] = None # Store None for manual
+            else:
+                ach_data["target"] = None
 
-            if ach_data.get("linked_to") == "None": # Handle 'None' string from combobox
+            if ach_data.get("linked_to") == "None":
                 ach_data["linked_to"] = None
             
             current_game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == game_name), None)
@@ -1072,22 +1179,21 @@ class WorkLoggerApp:
             is_editing = achievement_index is not None
             original_name_if_editing = current_game_obj["achievements"][achievement_index]["name"] if is_editing else None
 
-            # Check for duplicate achievement name within the same game (if adding new or renaming)
-            if ach_data["name"] != original_name_if_editing: # If name changed or adding new
+            if ach_data["name"] != original_name_if_editing:
                 if any(a["name"] == ach_data["name"] for idx, a in enumerate(current_game_obj.get("achievements", [])) if idx != achievement_index):
                     messagebox.showerror("Duplicate", f"An achievement named '{ach_data['name']}' already exists in this game.", parent=dialog)
                     return
 
-            if is_editing: # Editing existing
+            if is_editing:
                 original_unlocked_status = current_game_obj["achievements"][achievement_index].get("unlocked", False)
-                ach_data["unlocked"] = original_unlocked_status # Preserve unlocked status
+                ach_data["unlocked"] = original_unlocked_status
                 current_game_obj["achievements"][achievement_index].update(ach_data)
-            else: # Adding new
-                ach_data["unlocked"] = False # New achievements are locked
+            else:
+                ach_data["unlocked"] = False
                 current_game_obj.setdefault("achievements", []).append(ach_data)
 
             self.save_games_data()
-            self.on_game_selected() # Refresh treeview and summary
+            self.on_game_selected()
             dialog.destroy()
             messagebox.showinfo("Success", "Achievement saved.", parent=self.root)
 
@@ -1109,7 +1215,7 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name_to_delete = item_values[0] # Name is the first column
+        ach_name_to_delete = item_values[0]
 
         if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the achievement '{ach_name_to_delete}' from '{selected_game_name}'?", parent=self.root):
             for game in self.games_data.get("games", []):
@@ -1117,7 +1223,7 @@ class WorkLoggerApp:
                     game["achievements"] = [ach for ach in game.get("achievements", []) if ach.get("name") != ach_name_to_delete]
                     break
             self.save_games_data()
-            self.on_game_selected() # Refresh tree and summary
+            self.on_game_selected()
             messagebox.showinfo("Deleted", f"Achievement '{ach_name_to_delete}' deleted.", parent=self.root)
 
 
@@ -1133,7 +1239,7 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name_to_toggle = item_values[0] # Name is the first column
+        ach_name_to_toggle = item_values[0]
 
         game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == selected_game_name), None)
         if not game_obj:
@@ -1149,29 +1255,25 @@ class WorkLoggerApp:
         new_status = not current_unlocked_status
         verb = "unlocked" if new_status else "locked"
 
-        # Warning for manually locking auto-achievements or unlocking them (though less critical for unlocking)
         if ach_obj.get("type") != "manual":
-            if not new_status : # Trying to manually lock an auto-achievement
+            if not new_status :
                 if not messagebox.askyesno("Confirm Lock", f"'{ach_name_to_toggle}' is an automatic achievement. Are you sure you want to manually lock it? It might re-unlock automatically if conditions are met.", parent=self.root):
                     return
-            # else: # Manually unlocking an auto-achievement - generally fine, or add info message
-            #     messagebox.showinfo("Info", f"Manually unlocking '{ach_name_to_toggle}'. Automatic checks might also trigger this.", parent=self.root)
-
 
         ach_obj["unlocked"] = new_status
         self.save_games_data()
-        self.on_game_selected() # Refresh display and summary
+        self.on_game_selected()
         messagebox.showinfo("Status Changed", f"Achievement '{ach_name_to_toggle}' is now {verb}.", parent=self.root)
 
     def check_achievements_on_log(self, logged_project_name, logged_date_str):
-        self.load_games_data() # Ensure we have the latest data
+        self.load_games_data()
         try:
             logged_date_obj = datetime.strptime(logged_date_str, "%Y-%m-%d %H:%M").date()
         except ValueError:
             print(f"Error: Invalid date format in log entry: {logged_date_str}")
             return
 
-        work_log_entries = self.get_all_work_logs() # Get all logs for calculations
+        work_log_entries = self.get_all_work_logs()
 
         unlocked_achievements_info = []
         game_changed = False
@@ -1179,34 +1281,28 @@ class WorkLoggerApp:
         for game in self.games_data.get("games", []):
             for ach in game.get("achievements", []):
                 if ach.get("unlocked"):
-                    continue # Already unlocked
+                    continue
 
-                linked_project_for_ach = ach.get("linked_to") # Renamed for clarity
+                linked_project_for_ach = ach.get("linked_to")
                 ach_type = ach.get("type")
                 target = ach.get("target")
 
-                # Project match is true if:
-                # 1. The achievement is NOT linked to any specific project (general achievement)
-                # 2. The achievement IS linked and the logged project MATCHES the linked project.
-                # This allows general streaks/counters (linked_to=None) or project-specific ones.
                 is_relevant_project_for_ach = (linked_project_for_ach is None or linked_project_for_ach == "" or linked_project_for_ach == logged_project_name)
 
 
                 if ach_type == "counter" and target is not None:
-                    # Counter achievements usually make most sense when linked_to a specific project
-                    # or if we define a "total hours ever" counter (linked_to=None)
-                    if linked_project_for_ach is None or linked_project_for_ach == "": # If counter is for "any project"
+                    if linked_project_for_ach is None or linked_project_for_ach == "":
                         total_hours = 0
                         for _, _, _, entry_hours_str in work_log_entries:
                             try: total_hours += float(entry_hours_str)
                             except ValueError: continue
-                    elif linked_project_for_ach == logged_project_name: # Only calculate if relevant project was logged
+                    elif linked_project_for_ach == logged_project_name:
                         total_hours = 0
                         for _, entry_project, _, entry_hours_str in work_log_entries:
                             if entry_project == linked_project_for_ach:
                                 try: total_hours += float(entry_hours_str)
                                 except ValueError: continue
-                    else: # Counter is for a different project than the one just logged, skip.
+                    else:
                         continue
 
 
@@ -1220,34 +1316,31 @@ class WorkLoggerApp:
                     for entry_date_str_from_log, entry_project, _, _ in work_log_entries:
                         try:
                             d = datetime.strptime(entry_date_str_from_log, "%Y-%m-%d %H:%M").date()
-                            # Add date if streak is general OR if it's for the specific linked project
                             if linked_project_for_ach is None or linked_project_for_ach == "" or entry_project == linked_project_for_ach:
                                 relevant_work_dates.add(d)
                         except ValueError:
                             continue
 
                     if not relevant_work_dates or logged_date_obj not in relevant_work_dates:
-                        continue # Logged date must be part of the streak check
+                        continue
 
                     sorted_dates = sorted(list(relevant_work_dates), reverse=True)
 
                     current_streak = 0
-                    # Find the index of the logged_date_obj
                     try:
                         start_index = sorted_dates.index(logged_date_obj)
-                    except ValueError: # Logged date not in relevant dates somehow (shouldn't happen if previous check passed)
+                    except ValueError:
                         continue
 
-                    current_streak = 1 # Start with today's log
+                    current_streak = 1
                     expected_date = logged_date_obj - timedelta(days=1)
 
                     for i in range(start_index + 1, len(sorted_dates)):
                         if sorted_dates[i] == expected_date:
                             current_streak += 1
                             expected_date -= timedelta(days=1)
-                        elif sorted_dates[i] < expected_date: # Gap in streak
+                        elif sorted_dates[i] < expected_date:
                             break
-                        # else sorted_dates[i] > expected_date (should not occur due to reverse sort and starting after logged_date_obj)
                     
                     if current_streak >= target:
                         ach["unlocked"] = True
@@ -1256,9 +1349,8 @@ class WorkLoggerApp:
 
         if game_changed:
             self.save_games_data()
-            # If the achievements tab is active, refresh its view
             if self.notebook.index(self.notebook.select()) == self.notebook.tabs().index(str(self.tab_achievements)):
-                 self.on_game_selected() # Refresh view if on achievements tab and a game is selected
+                 self.on_game_selected()
 
         if unlocked_achievements_info:
             summary_message = "New Achievements Unlocked!\n\n" + "\n".join(unlocked_achievements_info)
@@ -1273,12 +1365,12 @@ class WorkLoggerApp:
         with open(LOG_FILE, mode='r', newline='') as file:
             reader = csv.reader(file)
             try:
-                next(reader)  # Skip header
+                next(reader)
                 for row in reader:
-                    if len(row) == 4: # Date, Project, Task, Hours
+                    if len(row) == 4:
                         entries.append(row)
             except StopIteration:
-                pass # Empty file
+                pass
         return entries
 
 
@@ -1288,3 +1380,4 @@ if __name__ == "__main__":
     # Center the window
     root.eval('tk::PlaceWindow . center')
     root.mainloop()
+
