@@ -611,9 +611,11 @@ class WorkLoggerApp:
         # --- Plot 1: Total Hours per Project (Bar Chart) ---
         if project_hours_total:
             plt.figure(figsize=(10, 6)) # Adjusted size
-            projects = list(project_hours_total.keys())
-            total_hrs = list(project_hours_total.values())
-            plt.bar(projects, total_hrs, color='skyblue')
+            projects_sorted_names = sorted(project_hours_total.keys())
+            total_hrs_sorted = [project_hours_total[name] for name in projects_sorted_names]
+            # projects = list(project_hours_total.keys())
+            # total_hrs = list(project_hours_total.values())
+            plt.bar(projects_sorted_names, total_hrs_sorted, color='skyblue')
             plt.title("Total Hours per Project")
             plt.xlabel("Project")
             plt.ylabel("Total Hours")
@@ -650,7 +652,10 @@ class WorkLoggerApp:
         # --- Plot 3: Cumulative Work Hours Over Time (Line Chart) ---
         if cumulative_per_project:
             plt.figure(figsize=(12, 7)) # Adjusted size
-            for project_name, data_points in cumulative_per_project.items():
+            projects_cumulative_sorted_names = sorted(cumulative_per_project.keys())
+            for project_name in projects_cumulative_sorted_names:
+            # for project_name, data_points in cumulative_per_project.items():
+                data_points = cumulative_per_project[project_name]
                 if data_points: # Ensure there are points to plot
                     dates = [dp[0] for dp in data_points]
                     cum_hours = [dp[1] for dp in data_points]
@@ -770,31 +775,43 @@ class WorkLoggerApp:
         tab = self.tab_achievements
         tab.columnconfigure(0, weight=1) # Game selection column
         tab.columnconfigure(1, weight=3) # Achievements display column
-        tab.rowconfigure(1, weight=1) # Achievements listbox row
+        tab.rowconfigure(1, weight=1) # Achievements listbox row (this might need to be row 0 of ach_frame for treeview)
 
         # --- Game Selection and Management ---
         game_frame = ttk.LabelFrame(tab, text="Games")
-        game_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
+        game_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=10, sticky="nswe") # Span rows to make space for summary
         game_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(game_frame, text="Select Game:").pack(pady=(0,2), anchor="w")
+        ttk.Label(game_frame, text="Select Game:").pack(pady=(5,2), anchor="w", padx=5)
         self.game_var = tk.StringVar()
         self.game_combo = ttk.Combobox(game_frame, textvariable=self.game_var, state="readonly", postcommand=self.update_game_combo_values)
-        self.game_combo.pack(fill="x", pady=(0,5))
+        self.game_combo.pack(fill="x", pady=(0,5), padx=5)
         self.game_combo.bind("<<ComboboxSelected>>", self.on_game_selected)
 
         game_btn_frame = ttk.Frame(game_frame)
-        game_btn_frame.pack(fill="x", pady=5)
+        game_btn_frame.pack(fill="x", pady=5, padx=5)
         ttk.Button(game_btn_frame, text="Add Game", command=self.add_game).pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(game_btn_frame, text="Edit Game", command=self.edit_game).pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(game_btn_frame, text="Delete Game", command=self.delete_game).pack(side="left", expand=True, fill="x", padx=2)
 
+        # --- Game Summary Frame --- Added this section
+        self.game_summary_frame = ttk.LabelFrame(game_frame, text="Summary")
+        self.game_summary_frame.pack(fill="x", pady=(10,5), padx=5, anchor="n") # anchor to north
+        
+        self.summary_total_ach_label = ttk.Label(self.game_summary_frame, text="Total: 0")
+        self.summary_total_ach_label.pack(anchor="w", padx=5, pady=1)
+        self.summary_unlocked_ach_label = ttk.Label(self.game_summary_frame, text="Unlocked: 0")
+        self.summary_unlocked_ach_label.pack(anchor="w", padx=5, pady=1)
+        self.summary_locked_ach_label = ttk.Label(self.game_summary_frame, text="Locked: 0")
+        self.summary_locked_ach_label.pack(anchor="w", padx=5, pady=1)
+        # Initially hide or disable if no game is selected? Or just show 0s. Current approach is 0s.
 
         # --- Achievements Display and Management ---
         ach_frame = ttk.LabelFrame(tab, text="Achievements")
-        ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe") # Span rows
+        # ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe") # Original
+        ach_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nswe") # Adjusted to ensure it takes available space.
         ach_frame.columnconfigure(0, weight=1)
-        ach_frame.rowconfigure(0, weight=1)
+        ach_frame.rowconfigure(0, weight=1) # Ensure treeview expands
 
 
         self.achievements_tree = ttk.Treeview(ach_frame, columns=("Name", "Description", "Type", "Target", "Linked Project", "Unlocked"), show="headings")
@@ -827,16 +844,22 @@ class WorkLoggerApp:
         ttk.Button(ach_btn_frame, text="Delete Achievement", command=self.delete_achievement).pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(ach_btn_frame, text="Toggle Unlock", command=self.toggle_manual_unlock_achievement).pack(side="left", expand=True, fill="x", padx=2)
 
+        self.update_game_summary_display(0, 0, 0) # Initialize summary display
+
 
     def update_game_combo_values(self):
         game_names = [game["name"] for game in self.games_data.get("games", [])]
+        current_selection = self.game_var.get()
         self.game_combo['values'] = game_names
-        if game_names and not self.game_var.get():
-            self.game_var.set(game_names[0])
-            self.on_game_selected() # Trigger loading achievements for the first game
-        elif not game_names:
+        if game_names:
+            if current_selection in game_names:
+                self.game_var.set(current_selection)
+            else:
+                self.game_var.set(game_names[0])
+            self.on_game_selected() # Trigger loading achievements for the first game or current
+        else:
             self.game_var.set("")
-            self.on_game_selected() # Clear achievements if no games
+            self.on_game_selected() # Clear achievements and summary if no games
 
 
     def on_game_selected(self, event=None):
@@ -844,23 +867,44 @@ class WorkLoggerApp:
             self.achievements_tree.delete(item)
 
         selected_game_name = self.game_var.get()
+        total_ach = 0
+        unlocked_ach = 0
+        locked_ach = 0
+
         if not selected_game_name:
+            self.update_game_summary_display(0,0,0)
             return
 
-        for game in self.games_data.get("games", []):
-            if game["name"] == selected_game_name:
-                for ach in game.get("achievements", []):
-                    unlocked_status = "Yes" if ach.get("unlocked") else "No"
-                    target_display = ach.get("target", "") if ach.get("target") is not None else ""
-                    self.achievements_tree.insert("", tk.END, values=(
-                        ach.get("name", ""),
-                        ach.get("description", ""),
-                        ach.get("type", ""),
-                        target_display,
-                        ach.get("linked_to", ""),
-                        unlocked_status
-                    ))
-                break
+        game_data = next((game for game in self.games_data.get("games", []) if game["name"] == selected_game_name), None)
+
+        if game_data:
+            achievements_list = game_data.get("achievements", [])
+            total_ach = len(achievements_list)
+            for ach in achievements_list:
+                unlocked_status_bool = ach.get("unlocked", False)
+                unlocked_status_str = "Yes" if unlocked_status_bool else "No"
+                if unlocked_status_bool:
+                    unlocked_ach += 1
+                else:
+                    locked_ach += 1
+                
+                target_display = ach.get("target", "") if ach.get("target") is not None else ""
+                self.achievements_tree.insert("", tk.END, values=(
+                    ach.get("name", ""),
+                    ach.get("description", ""),
+                    ach.get("type", ""),
+                    target_display,
+                    ach.get("linked_to", ""),
+                    unlocked_status_str
+                ))
+        
+        self.update_game_summary_display(total_ach, unlocked_ach, locked_ach)
+
+    def update_game_summary_display(self, total, unlocked, locked):
+        self.summary_total_ach_label.config(text=f"Total: {total}")
+        self.summary_unlocked_ach_label.config(text=f"Unlocked: {unlocked} ({((unlocked/total*100) if total > 0 else 0):.1f}%)")
+        self.summary_locked_ach_label.config(text=f"Locked: {locked} ({((locked/total*100) if total > 0 else 0):.1f}%)")
+
 
     def add_game(self):
         game_name = simpledialog.askstring("Add Game", "Enter the name for the new game:", parent=self.root)
@@ -874,9 +918,9 @@ class WorkLoggerApp:
                 return
             self.games_data.setdefault("games", []).append({"name": game_name, "achievements": []})
             self.save_games_data()
-            self.update_game_combo_values()
-            self.game_var.set(game_name) # Select the newly added game
-            self.on_game_selected()
+            self.update_game_combo_values() # This will set the new game and call on_game_selected
+            # self.game_var.set(game_name) # Select the newly added game - update_game_combo handles this
+            # self.on_game_selected()
             messagebox.showinfo("Success", f"Game '{game_name}' added.", parent=self.root)
 
 
@@ -902,9 +946,9 @@ class WorkLoggerApp:
                     game["name"] = new_game_name
                     break
             self.save_games_data()
-            self.update_game_combo_values()
-            self.game_var.set(new_game_name) # Reselect with new name
-            self.on_game_selected()
+            self.update_game_combo_values() # This will refresh list and reselect, then call on_game_selected
+            # self.game_var.set(new_game_name) # Reselect with new name - handled by update_game_combo
+            # self.on_game_selected()
             messagebox.showinfo("Success", f"Game '{selected_game_name}' updated to '{new_game_name}'.", parent=self.root)
 
 
@@ -917,8 +961,8 @@ class WorkLoggerApp:
         if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the game '{selected_game_name}' and all its achievements?", parent=self.root):
             self.games_data["games"] = [g for g in self.games_data.get("games", []) if g["name"] != selected_game_name]
             self.save_games_data()
-            self.game_var.set("") # Clear selection
-            self.update_game_combo_values() # This will also refresh achievements list (to empty)
+            # self.game_var.set("") # Clear selection - update_game_combo will handle this better
+            self.update_game_combo_values() # This will also refresh achievements list (to empty if selected was last)
             messagebox.showinfo("Deleted", f"Game '{selected_game_name}' deleted.", parent=self.root)
 
 
@@ -940,75 +984,76 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name = item_values[0]
+        ach_name = item_values[0] # Name is the first column in the tree
 
-        for game in self.games_data.get("games", []):
-            if game["name"] == selected_game_name:
-                for i, ach in enumerate(game.get("achievements", [])):
-                    if ach["name"] == ach_name:
-                        self._open_achievement_dialog(game_name=selected_game_name, achievement_index=i, initial_data=ach)
-                        return
+        game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == selected_game_name), None)
+        if game_obj:
+            for i, ach_data in enumerate(game_obj.get("achievements", [])):
+                if ach_data.get("name") == ach_name:
+                    self._open_achievement_dialog(game_name=selected_game_name, achievement_index=i, initial_data=ach_data)
+                    return
         messagebox.showerror("Error", "Could not find the selected achievement for editing.", parent=self.root)
 
 
     def _open_achievement_dialog(self, game_name, achievement_index=None, initial_data=None):
         dialog = tk.Toplevel(self.root)
-        dialog.title("Add/Edit Achievement" if initial_data else "Add Achievement")
+        dialog.title("Edit Achievement" if initial_data else "Add Achievement") # Corrected title logic
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)
 
         # Fields: name, description, type, target, linked_to
-        fields = ["Name", "Description", "Type", "Target", "Linked Project"]
-        entries = {}
-        types = ["counter", "streak", "manual"]
+        fields_setup = [
+            {"label": "Name", "key": "name", "widget": "entry"},
+            {"label": "Description", "key": "description", "widget": "entry"},
+            {"label": "Type", "key": "type", "widget": "combobox", "values": ["counter", "streak", "manual"]},
+            {"label": "Target", "key": "target", "widget": "entry"},
+            {"label": "Linked Project", "key": "linked_to", "widget": "combobox", "values": ["None"] + self.projects}
+        ]
+        entries_vars = {}
 
-        # Project list for linked_to, add "None" option
-        available_projects = ["None"] + self.projects # Ensure self.projects is up to date
 
-        for i, field in enumerate(fields):
-            ttk.Label(dialog, text=field + ":").grid(row=i, column=0, padx=5, pady=5, sticky="w")
-            if field == "Type":
-                var = tk.StringVar(dialog)
-                entry = ttk.Combobox(dialog, textvariable=var, values=types, state="readonly", width=38)
-                if initial_data and initial_data.get("type") in types:
-                    var.set(initial_data.get("type"))
-                else:
-                    var.set(types[0]) # Default to counter
-            elif field == "Linked Project":
-                var = tk.StringVar(dialog)
-                entry = ttk.Combobox(dialog, textvariable=var, values=available_projects, state="readonly", width=38)
-                if initial_data and initial_data.get("linked_to") in available_projects:
-                    var.set(initial_data.get("linked_to"))
-                elif available_projects:
-                     var.set(available_projects[0]) # Default to "None" or first project
-            else:
-                var = tk.StringVar(dialog)
-                entry = ttk.Entry(dialog, textvariable=var, width=40)
+        for i, field_info in enumerate(fields_setup):
+            ttk.Label(dialog, text=field_info["label"] + ":").grid(row=i, column=0, padx=5, pady=5, sticky="w")
+            var = tk.StringVar(dialog)
+            widget_type = field_info["widget"]
+
+            if widget_type == "combobox":
+                entry_widget = ttk.Combobox(dialog, textvariable=var, values=field_info["values"], state="readonly", width=38)
+                if initial_data and initial_data.get(field_info["key"]) in field_info["values"]:
+                    var.set(initial_data.get(field_info["key"]))
+                elif field_info["values"]: # Set default if no initial data or initial data not in values
+                     var.set(field_info["values"][0])
+            else: # entry
+                entry_widget = ttk.Entry(dialog, textvariable=var, width=40)
                 if initial_data:
-                    var.set(str(initial_data.get(field.lower().replace(" ", "_"), "")))
-            entry.grid(row=i, column=1, padx=5, pady=5, sticky="ew")
-            entries[field.lower().replace(" ", "_")] = var
+                    # Handle target = None for manual types gracefully
+                    initial_val = initial_data.get(field_info["key"], "")
+                    var.set(str(initial_val) if initial_val is not None else "")
+
+
+            entry_widget.grid(row=i, column=1, padx=5, pady=5, sticky="ew")
+            entries_vars[field_info["key"]] = var
 
 
         def on_save():
-            ach_data = {key: var.get() for key, var in entries.items()}
-            ach_data["name"] = ach_data["name"].strip()
-
+            ach_data = {key: var.get().strip() for key, var in entries_vars.items()} # Strip all string vars
+            
             if not ach_data["name"]:
                 messagebox.showerror("Input Error", "Achievement name cannot be empty.", parent=dialog)
                 return
 
             ach_type = ach_data.get("type")
-            target_str = ach_data.get("target", "")
+            target_str = ach_data.get("target", "") # Already stripped
+
             if ach_type in ["counter", "streak"]:
-                if not target_str:
-                    messagebox.showerror("Input Error", f"Target is required for '{ach_type}' achievements.", parent=dialog)
+                if not target_str: # Target can be 0 for some reason, but not empty for these types
+                    messagebox.showerror("Input Error", f"Target is required and must be a positive integer for '{ach_type}' achievements.", parent=dialog)
                     return
                 try:
                     ach_data["target"] = int(target_str)
-                    if ach_data["target"] <= 0:
-                         messagebox.showerror("Input Error", "Target must be a positive integer.", parent=dialog)
+                    if ach_data["target"] <= 0 and ach_type in ["counter", "streak"]: # Streaks/Counters typically positive
+                         messagebox.showerror("Input Error", "Target must be a positive integer for counter/streak.", parent=dialog)
                          return
                 except ValueError:
                     messagebox.showerror("Input Error", "Target must be a valid integer for counter/streak.", parent=dialog)
@@ -1016,40 +1061,40 @@ class WorkLoggerApp:
             else: # manual
                 ach_data["target"] = None # Store None for manual
 
-            if ach_data.get("linked_project") == "None":
+            if ach_data.get("linked_to") == "None": # Handle 'None' string from combobox
                 ach_data["linked_to"] = None
-            else:
-                ach_data["linked_to"] = ach_data.get("linked_project")
-            del ach_data["linked_project"] # Clean up temp key
+            
+            current_game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == game_name), None)
+            if not current_game_obj:
+                messagebox.showerror("Error", "Game not found. Cannot save achievement.", parent=dialog)
+                return
+
+            is_editing = achievement_index is not None
+            original_name_if_editing = current_game_obj["achievements"][achievement_index]["name"] if is_editing else None
 
             # Check for duplicate achievement name within the same game (if adding new or renaming)
-            current_game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == game_name), None)
-            if current_game_obj:
-                is_editing = achievement_index is not None
-                original_name = initial_data["name"] if is_editing and initial_data else None
-                if ach_data["name"] != original_name or not is_editing: # If name changed or adding new
-                    if any(a["name"] == ach_data["name"] for a in current_game_obj.get("achievements", [])):
-                        messagebox.showerror("Duplicate", f"An achievement named '{ach_data['name']}' already exists in this game.", parent=dialog)
-                        return
+            if ach_data["name"] != original_name_if_editing: # If name changed or adding new
+                if any(a["name"] == ach_data["name"] for idx, a in enumerate(current_game_obj.get("achievements", [])) if idx != achievement_index):
+                    messagebox.showerror("Duplicate", f"An achievement named '{ach_data['name']}' already exists in this game.", parent=dialog)
+                    return
 
-
-            if achievement_index is not None: # Editing existing
-                # Preserve unlocked status unless type changes from manual to auto (or vice-versa, if rules desired)
+            if is_editing: # Editing existing
                 original_unlocked_status = current_game_obj["achievements"][achievement_index].get("unlocked", False)
-                ach_data["unlocked"] = original_unlocked_status # Default to keeping it
+                ach_data["unlocked"] = original_unlocked_status # Preserve unlocked status
                 current_game_obj["achievements"][achievement_index].update(ach_data)
             else: # Adding new
                 ach_data["unlocked"] = False # New achievements are locked
                 current_game_obj.setdefault("achievements", []).append(ach_data)
 
             self.save_games_data()
-            self.on_game_selected() # Refresh treeview
+            self.on_game_selected() # Refresh treeview and summary
             dialog.destroy()
             messagebox.showinfo("Success", "Achievement saved.", parent=self.root)
 
         save_btn = ttk.Button(dialog, text="Save", command=on_save)
-        save_btn.grid(row=len(fields), column=0, columnspan=2, pady=10)
+        save_btn.grid(row=len(fields_setup), column=0, columnspan=2, pady=10)
         dialog.bind("<Return>", lambda event: on_save())
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
 
 
     def delete_achievement(self):
@@ -1064,15 +1109,15 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name_to_delete = item_values[0]
+        ach_name_to_delete = item_values[0] # Name is the first column
 
         if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the achievement '{ach_name_to_delete}' from '{selected_game_name}'?", parent=self.root):
             for game in self.games_data.get("games", []):
                 if game["name"] == selected_game_name:
-                    game["achievements"] = [ach for ach in game.get("achievements", []) if ach["name"] != ach_name_to_delete]
+                    game["achievements"] = [ach for ach in game.get("achievements", []) if ach.get("name") != ach_name_to_delete]
                     break
             self.save_games_data()
-            self.on_game_selected() # Refresh
+            self.on_game_selected() # Refresh tree and summary
             messagebox.showinfo("Deleted", f"Achievement '{ach_name_to_delete}' deleted.", parent=self.root)
 
 
@@ -1088,146 +1133,134 @@ class WorkLoggerApp:
             return
 
         item_values = self.achievements_tree.item(selected_items[0])["values"]
-        ach_name_to_toggle = item_values[0]
-        current_status_str = item_values[5] # 'Unlocked' column
+        ach_name_to_toggle = item_values[0] # Name is the first column
 
-        found_game = None
-        found_ach = None
-        ach_idx = -1
-
-        for game in self.games_data.get("games", []):
-            if game["name"] == selected_game_name:
-                found_game = game
-                for i, ach in enumerate(game.get("achievements", [])):
-                    if ach["name"] == ach_name_to_toggle:
-                        found_ach = ach
-                        ach_idx = i
-                        break
-                break
-
-        if not found_ach:
-            messagebox.showerror("Error", "Could not find the selected achievement data.", parent=self.root)
+        game_obj = next((g for g in self.games_data.get("games", []) if g["name"] == selected_game_name), None)
+        if not game_obj:
+            messagebox.showerror("Error", "Game not found.", parent=self.root)
             return
 
-        # Toggle status
-        new_status = not found_ach.get("unlocked", False)
+        ach_obj = next((ach for ach in game_obj.get("achievements", []) if ach.get("name") == ach_name_to_toggle), None)
+        if not ach_obj:
+            messagebox.showerror("Error", "Could not find the selected achievement data.", parent=self.root)
+            return
+        
+        current_unlocked_status = ach_obj.get("unlocked", False)
+        new_status = not current_unlocked_status
         verb = "unlocked" if new_status else "locked"
 
-        if found_ach.get("type") != "manual" and new_status == False : # Trying to manually lock an auto-achievement
-            if not messagebox.askyesno("Confirm Lock", f"This is an automatic achievement. Are you sure you want to manually lock '{ach_name_to_toggle}'? It might re-unlock automatically.", parent=self.root):
-                return
-        elif found_ach.get("type") != "manual" and new_status == True : # Trying to manually unlock an auto-achievement
-             messagebox.showinfo("Info", f"'{ach_name_to_toggle}' is an automatic achievement. It should unlock when conditions are met. Manual unlock is primarily for 'manual' type.", parent=self.root)
-             # Allow it, but inform user. Or could prevent it:
-             # return
+        # Warning for manually locking auto-achievements or unlocking them (though less critical for unlocking)
+        if ach_obj.get("type") != "manual":
+            if not new_status : # Trying to manually lock an auto-achievement
+                if not messagebox.askyesno("Confirm Lock", f"'{ach_name_to_toggle}' is an automatic achievement. Are you sure you want to manually lock it? It might re-unlock automatically if conditions are met.", parent=self.root):
+                    return
+            # else: # Manually unlocking an auto-achievement - generally fine, or add info message
+            #     messagebox.showinfo("Info", f"Manually unlocking '{ach_name_to_toggle}'. Automatic checks might also trigger this.", parent=self.root)
 
 
-        found_ach["unlocked"] = new_status
+        ach_obj["unlocked"] = new_status
         self.save_games_data()
-        self.on_game_selected() # Refresh display
+        self.on_game_selected() # Refresh display and summary
         messagebox.showinfo("Status Changed", f"Achievement '{ach_name_to_toggle}' is now {verb}.", parent=self.root)
 
     def check_achievements_on_log(self, logged_project_name, logged_date_str):
         self.load_games_data() # Ensure we have the latest data
-        logged_date_obj = datetime.strptime(logged_date_str, "%Y-%m-%d %H:%M").date()
+        try:
+            logged_date_obj = datetime.strptime(logged_date_str, "%Y-%m-%d %H:%M").date()
+        except ValueError:
+            print(f"Error: Invalid date format in log entry: {logged_date_str}")
+            return
+
         work_log_entries = self.get_all_work_logs() # Get all logs for calculations
 
         unlocked_achievements_info = []
+        game_changed = False
 
         for game in self.games_data.get("games", []):
             for ach in game.get("achievements", []):
                 if ach.get("unlocked"):
                     continue # Already unlocked
 
-                linked_project = ach.get("linked_to")
+                linked_project_for_ach = ach.get("linked_to") # Renamed for clarity
                 ach_type = ach.get("type")
                 target = ach.get("target")
 
-                # Check if the achievement is linked to the project that was just logged for,
-                # or if it's a generic achievement not linked to any specific project (linked_to is None or empty)
-                project_match = (linked_project is None or linked_project == "" or linked_project == logged_project_name)
-
-                if not project_match and ach_type != "streak": # Streaks can be general or project-specific
-                    if ach_type == "counter" and linked_project: # Only skip if counter IS linked and doesn't match
-                        continue
+                # Project match is true if:
+                # 1. The achievement is NOT linked to any specific project (general achievement)
+                # 2. The achievement IS linked and the logged project MATCHES the linked project.
+                # This allows general streaks/counters (linked_to=None) or project-specific ones.
+                is_relevant_project_for_ach = (linked_project_for_ach is None or linked_project_for_ach == "" or linked_project_for_ach == logged_project_name)
 
 
                 if ach_type == "counter" and target is not None:
-                    # Calculate total hours for the linked_project (if specified) or all projects
-                    total_hours = 0
-                    for entry_date, entry_project, entry_task, entry_hours_str in work_log_entries:
-                        try:
-                            entry_hours = float(entry_hours_str)
-                            if linked_project and entry_project == linked_project:
-                                total_hours += entry_hours
-                            elif not linked_project: # If achievement not linked, count hours from any project
-                                pass # This logic needs refinement: should it sum all project hours for one achievement?
-                                     # Current interpretation: if linked_to is None, it's not a counter achievement for a SPECIFIC project.
-                                     # For now, let's assume counter achievements MUST be linked or this check is skipped.
-                                     # OR, if linked_project is None, it means total hours across ALL projects.
-                                     # Let's assume for now: if linked_project is specified, use it. If not, this 'counter' is ill-defined for this check.
-                                     # Re-evaluating: If linked_project is None for a counter, it implies total hours across ALL projects.
-                                     # For now, let's make "linked_to" mandatory for "counter" type for simplicity in this check.
-                                     # Or, we can allow linked_to to be None, meaning total hours for *any* project triggers it.
-                                     # Let's assume: if linked_project is set, it must match. If linked_project is None, we need to decide how to count.
-                                     # For clarity, a "counter" achievement should ideally have a linked_project.
-                                     # If we want a "total hours ever" achievement, that's a specific type of counter.
+                    # Counter achievements usually make most sense when linked_to a specific project
+                    # or if we define a "total hours ever" counter (linked_to=None)
+                    if linked_project_for_ach is None or linked_project_for_ach == "": # If counter is for "any project"
+                        total_hours = 0
+                        for _, _, _, entry_hours_str in work_log_entries:
+                            try: total_hours += float(entry_hours_str)
+                            except ValueError: continue
+                    elif linked_project_for_ach == logged_project_name: # Only calculate if relevant project was logged
+                        total_hours = 0
+                        for _, entry_project, _, entry_hours_str in work_log_entries:
+                            if entry_project == linked_project_for_ach:
+                                try: total_hours += float(entry_hours_str)
+                                except ValueError: continue
+                    else: # Counter is for a different project than the one just logged, skip.
+                        continue
 
-                                # If the achievement is specifically for the logged_project_name:
-                                if entry_project == linked_project: # Ensure we only count hours for the *linked* project.
-                                    total_hours += entry_hours
-
-                        except ValueError:
-                            continue # Skip malformed log entry
 
                     if total_hours >= target:
                         ach["unlocked"] = True
                         unlocked_achievements_info.append(f"{game['name']} - {ach['name']}")
+                        game_changed = True
 
                 elif ach_type == "streak" and target is not None:
-                    # Get all unique dates worked on the linked_project (if specified) or any project
                     relevant_work_dates = set()
-                    for entry_date_str, entry_project, _, _ in work_log_entries:
+                    for entry_date_str_from_log, entry_project, _, _ in work_log_entries:
                         try:
-                            d = datetime.strptime(entry_date_str, "%Y-%m-%d %H:%M").date()
-                            if linked_project and entry_project == linked_project:
-                                relevant_work_dates.add(d)
-                            elif not linked_project: # Streak across any project
+                            d = datetime.strptime(entry_date_str_from_log, "%Y-%m-%d %H:%M").date()
+                            # Add date if streak is general OR if it's for the specific linked project
+                            if linked_project_for_ach is None or linked_project_for_ach == "" or entry_project == linked_project_for_ach:
                                 relevant_work_dates.add(d)
                         except ValueError:
                             continue
 
-                    if not relevant_work_dates:
-                        continue
+                    if not relevant_work_dates or logged_date_obj not in relevant_work_dates:
+                        continue # Logged date must be part of the streak check
 
-                    sorted_dates = sorted(list(relevant_work_dates), reverse=True) # Most recent first
+                    sorted_dates = sorted(list(relevant_work_dates), reverse=True)
 
                     current_streak = 0
-                    if logged_date_obj in sorted_dates: # Must include today's log
-                        current_streak = 1
-                        # Check backwards from today (or the day before today if today is not the most recent log)
-                        expected_date = logged_date_obj - timedelta(days=1)
-                        for i in range(len(sorted_dates)):
-                            # Find logged_date_obj in sorted_dates first
-                            if sorted_dates[i] == logged_date_obj:
-                                # Now iterate from the day before logged_date_obj
-                                for j in range(i + 1, len(sorted_dates)):
-                                    if sorted_dates[j] == expected_date:
-                                        current_streak += 1
-                                        expected_date -= timedelta(days=1)
-                                    elif sorted_dates[j] < expected_date: # Gap in streak
-                                        break
-                                    # else: sorted_dates[j] > expected_date (should not happen due to sort and starting point)
-                                break # Found logged_date_obj, processed streak from there
+                    # Find the index of the logged_date_obj
+                    try:
+                        start_index = sorted_dates.index(logged_date_obj)
+                    except ValueError: # Logged date not in relevant dates somehow (shouldn't happen if previous check passed)
+                        continue
 
+                    current_streak = 1 # Start with today's log
+                    expected_date = logged_date_obj - timedelta(days=1)
+
+                    for i in range(start_index + 1, len(sorted_dates)):
+                        if sorted_dates[i] == expected_date:
+                            current_streak += 1
+                            expected_date -= timedelta(days=1)
+                        elif sorted_dates[i] < expected_date: # Gap in streak
+                            break
+                        # else sorted_dates[i] > expected_date (should not occur due to reverse sort and starting after logged_date_obj)
+                    
                     if current_streak >= target:
                         ach["unlocked"] = True
                         unlocked_achievements_info.append(f"{game['name']} - {ach['name']}")
+                        game_changed = True
+
+        if game_changed:
+            self.save_games_data()
+            # If the achievements tab is active, refresh its view
+            if self.notebook.index(self.notebook.select()) == self.notebook.tabs().index(str(self.tab_achievements)):
+                 self.on_game_selected() # Refresh view if on achievements tab and a game is selected
 
         if unlocked_achievements_info:
-            self.save_games_data()
-            self.on_game_selected() # Refresh view if on achievements tab
-            # Show a summary messagebox
             summary_message = "New Achievements Unlocked!\n\n" + "\n".join(unlocked_achievements_info)
             messagebox.showinfo("Achievements Unlocked!", summary_message, parent=self.root)
 
