@@ -20,12 +20,11 @@ if not os.path.exists(LOG_FILE):
         writer = csv.writer(file)
         writer.writerow(["Date", "Project", "Task", "Hours"])
 
-# === REQUIREMENT 1: Data and Storage Changes ===
-# Modify the task_metadata.csv file structure to include a new column at the end named "Status".
+# === Prize Feature: Add "Prize" column to header ===
 if not os.path.exists(METADATA_FILE):
     with open(METADATA_FILE, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
+        writer.writerow(["Project", "Task", "Importance", "Urgency", "Deadline", "Status", "Prize"])
 
 if not os.path.exists(PROJECTS_FILE):
     with open(PROJECTS_FILE, mode='w', newline='') as file:
@@ -167,125 +166,121 @@ class WorkLoggerApp:
         self.avg_label.config(text=f"Avg per day: {avg:.1f} hrs")
         self.today_label.config(text=f"Today: {stats['today']:.1f} hrs")
 
-    # === REQUIREMENT 2: UI Enhancements in build_overview_tab ===
     def build_overview_tab(self):
         tab = self.tab_overview
 
-        # --- Treeview for Task Metadata ---
-        # Modify Treeview to display new columns in the specified order.
-        cols = ("Priority", "Project", "Task", "Status", "Importance", "Urgency", "Deadline")
+        # === Prize Feature: Add "Prize" to Treeview ===
+        cols = ("Priority", "Project", "Task", "Status", "Importance", "Urgency", "Deadline", "Prize")
         self.meta_tree = ttk.Treeview(tab, columns=cols, show="headings")
 
         for col in cols:
-            # Add command for clickable column sorting.
             self.meta_tree.heading(col, text=col, command=lambda _col=col: self.sort_overview_column(_col, False))
             self.meta_tree.column(col, width=100, anchor="w")
 
-        # Adjust column widths for better readability.
         self.meta_tree.column("Priority", width=60, anchor="center")
-        self.meta_tree.column("Task", width=250, anchor="w")
+        self.meta_tree.column("Task", width=200, anchor="w")
         self.meta_tree.column("Status", width=80, anchor="center")
+        self.meta_tree.column("Prize", width=150, anchor="w")
 
-        self.meta_tree.grid(row=0, column=0, columnspan=5, sticky="nsew", padx=5, pady=5)
+        self.meta_tree.grid(row=0, column=0, columnspan=6, sticky="nsew", padx=5, pady=5)
         scrollbar = ttk.Scrollbar(tab, orient="vertical", command=self.meta_tree.yview)
         self.meta_tree.configure(yscroll=scrollbar.set)
-        scrollbar.grid(row=0, column=5, sticky="ns")
+        scrollbar.grid(row=0, column=6, sticky="ns")
 
-        # Add a tag to visually distinguish completed tasks.
         self.meta_tree.tag_configure('done', foreground='gray')
 
-        # --- Input Frame for Adding/Updating Tasks ---
+        # --- Input Frame ---
         input_frame = ttk.Frame(tab)
-        input_frame.grid(row=1, column=0, columnspan=5, sticky="ew", padx=5, pady=5)
+        input_frame.grid(row=1, column=0, columnspan=6, sticky="ew", padx=5, pady=5)
 
         self.meta_entries = {}
         rating_values = ["1", "2", "3", "4", "5"]
-        labels = ("Project", "Task", "Importance", "Urgency", "Deadline")
+        # === Prize Feature: Add "Prize" to input labels ===
+        labels = ("Project", "Task", "Importance", "Urgency", "Deadline", "Prize")
 
         for idx, label_text in enumerate(labels):
             ttk.Label(input_frame, text=label_text + ":").grid(row=0, column=idx, sticky="w", padx=5, pady=2)
-            # Replace Entry widgets with Comboboxes for specific fields.
             if label_text == "Project":
                 entry = ttk.Combobox(input_frame, values=self.projects, width=15)
             elif label_text in ["Importance", "Urgency"]:
                 entry = ttk.Combobox(input_frame, values=rating_values, width=15)
-            else:  # Task, Deadline
+            else:
                 entry = ttk.Entry(input_frame, width=15)
 
             entry.grid(row=1, column=idx, sticky="ew", padx=5, pady=2)
             self.meta_entries[label_text] = entry
             input_frame.grid_columnconfigure(idx, weight=1)
 
-        # --- Button and Options Frame ---
+        # --- Button Frame ---
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=2, column=0, columnspan=5, pady=10)
+        button_frame.grid(row=2, column=0, columnspan=6, pady=10)
 
-        # Add a Checkbutton to hide completed tasks.
         self.hide_completed_var = tk.BooleanVar(value=False)
 
-        # Rename button and add new controls.
         ttk.Button(button_frame, text="Save Task", command=self.add_or_update_metadata).pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Delete Selected", command=self.delete_metadata_entry).pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Toggle Status", command=self.toggle_task_status).pack(side=tk.LEFT, padx=10)
         ttk.Checkbutton(button_frame, text="Hide Completed Tasks", variable=self.hide_completed_var, command=self.load_task_metadata).pack(side=tk.LEFT, padx=10)
 
-        # Configure grid weights for responsive resizing.
         tab.grid_columnconfigure(0, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
         self.load_task_metadata()
 
-    # === REQUIREMENT 3: Functional Logic Implementation ===
-    # --- Clickable Column Sorting ---
     def sort_overview_column(self, col, reverse):
-        """Sorts the overview treeview by a column and updates the header command."""
         self.load_task_metadata(sort_col=col, reverse=reverse)
-        # Update the column header's command to sort in the opposite direction on the next click.
         self.meta_tree.heading(col, text=col, command=lambda _col=col: self.sort_overview_column(_col, not reverse))
 
-    # --- Task Status Management ---
+    # === Prize Feature: Update status toggle to show prize ===
     def toggle_task_status(self):
-        """Toggles the status of the selected task between 'To-Do' and 'Done'."""
         selected_items = self.meta_tree.selection()
         if not selected_items:
             messagebox.showwarning("No Selection", "Please select a task to toggle its status.")
             return
 
         selected_item = self.meta_tree.item(selected_items[0])
-        # Retrieve task identifiers from the selected Treeview row.
-        # Treeview columns: Priority, Project, Task, ...
         project_name = selected_item['values'][1]
         task_name = selected_item['values'][2]
 
         all_rows = []
         header = []
+        prize_to_claim = ""
+        new_status_for_task = ""
+
         if os.path.exists(METADATA_FILE):
             with open(METADATA_FILE, 'r', newline='') as file:
                 reader = csv.reader(file)
                 try:
                     header = next(reader)
                     all_rows.append(header)
-                    # CSV columns: Project, Task, Importance, Urgency, Deadline, Status
+                    # Get column indices
+                    col_map = {name: idx for idx, name in enumerate(header)}
+                    
                     for row in reader:
-                        if len(row) < 6: continue
-                        if row[0] == project_name and row[1] == task_name:
-                            current_status = row[5]
+                        if len(row) < len(header): continue
+                        if row[col_map["Project"]] == project_name and row[col_map["Task"]] == task_name:
+                            current_status = row[col_map["Status"]]
                             new_status = "Done" if current_status in ["To-Do", ""] else "To-Do"
-                            row[5] = new_status
+                            row[col_map["Status"]] = new_status
+                            new_status_for_task = new_status
+                            # If task is now "Done", get the prize
+                            if new_status_for_task == "Done":
+                                prize_to_claim = row[col_map["Prize"]] if "Prize" in col_map else ""
                         all_rows.append(row)
-                except StopIteration:
+                except (StopIteration, KeyError):
                     pass
 
-        # Rewrite the CSV file with the updated status.
         with open(METADATA_FILE, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(all_rows)
 
         self.load_task_metadata()
+        
+        # Show prize message box after updating the view
+        if new_status_for_task == "Done" and prize_to_claim:
+            messagebox.showinfo("Task Complete!", f"Congratulations!\n\nYour prize is: {prize_to_claim}")
 
-    # --- Priority Calculation & Data Loading ---
     def load_task_metadata(self, sort_col="Priority", reverse=True):
-        """Loads task data, calculates priority, filters, sorts, and displays it."""
         for row in self.meta_tree.get_children():
             self.meta_tree.delete(row)
 
@@ -297,24 +292,27 @@ class WorkLoggerApp:
             try:
                 header = next(reader)
                 col_map = {name: idx for idx, name in enumerate(header)}
-                if "Status" not in col_map: # Handle old file format gracefully
-                    col_map["Status"] = -1
                 
+                # Handle old file format gracefully by assigning default values
+                status_idx = col_map.get("Status", -1)
+                prize_idx = col_map.get("Prize", -1)
+
                 for row in reader:
                     if len(row) < 5: continue
 
-                    # Filter based on the "Hide Completed Tasks" checkbox.
-                    status = row[col_map["Status"]] if col_map["Status"] != -1 and len(row) > col_map["Status"] else "To-Do"
+                    status = row[status_idx] if status_idx != -1 and len(row) > status_idx else "To-Do"
                     if self.hide_completed_var.get() and status == "Done":
                         continue
-
-                    # Calculate Priority score. Default to 0 if values are invalid.
+                    
                     try:
                         importance = int(row[col_map["Importance"]])
                         urgency = int(row[col_map["Urgency"]])
                         priority = importance * urgency
                     except (ValueError, IndexError):
                         priority = 0
+
+                    # === Prize Feature: Load prize data ===
+                    prize = row[prize_idx] if prize_idx != -1 and len(row) > prize_idx else ""
 
                     task_data = {
                         "Priority": priority,
@@ -323,47 +321,46 @@ class WorkLoggerApp:
                         "Status": status,
                         "Importance": row[col_map["Importance"]],
                         "Urgency": row[col_map["Urgency"]],
-                        "Deadline": row[col_map["Deadline"]]
+                        "Deadline": row[col_map["Deadline"]],
+                        "Prize": prize
                     }
                     all_tasks.append(task_data)
-            except (StopIteration, ValueError):
+            except (StopIteration, ValueError, KeyError):
                 return
 
-        # Sort the data based on the selected column and direction.
         if sort_col == "Priority":
             all_tasks.sort(key=lambda x: x.get(sort_col, 0), reverse=reverse)
         else:
             all_tasks.sort(key=lambda x: str(x.get(sort_col, "")).lower(), reverse=reverse)
 
-        # Insert sorted data into the Treeview.
         for task in all_tasks:
+            # === Prize Feature: Display prize in Treeview ===
             values = (
                 task["Priority"], task["Project"], task["Task"], task["Status"],
-                task["Importance"], task["Urgency"], task["Deadline"]
+                task["Importance"], task["Urgency"], task["Deadline"], task["Prize"]
             )
-            # Use the 'done' tag for a visual indicator on completed tasks.
             tag = 'done' if task["Status"] == "Done" else ''
             self.meta_tree.insert("", tk.END, values=values, tags=(tag,))
     
-    # --- Saving and Updating Data ---
+    # === Prize Feature: Save prize data ===
     def add_or_update_metadata(self):
-        """Saves a new task or updates an existing one, preserving its status."""
         project = self.meta_entries["Project"].get()
         task = self.meta_entries["Task"].get()
         importance = self.meta_entries["Importance"].get()
         urgency = self.meta_entries["Urgency"].get()
         deadline = self.meta_entries["Deadline"].get()
+        prize = self.meta_entries["Prize"].get()
 
         if not project or not task:
             messagebox.showwarning("Missing Data", "Project and Task fields are required.")
             return
         
-        # New task data without status.
         new_entry_values_base = [project, task, importance, urgency, deadline]
 
         all_rows = []
         updated = False
-        original_status = "To-Do"  # Default status for new tasks.
+        original_status = "To-Do"
+        original_prize = prize
 
         if os.path.exists(METADATA_FILE):
             with open(METADATA_FILE, 'r', newline='') as file:
@@ -372,24 +369,28 @@ class WorkLoggerApp:
                     headers = next(reader)
                     all_rows.append(headers)
                     if "Status" not in headers: headers.append("Status")
+                    if "Prize" not in headers: headers.append("Prize")
                     
+                    col_map = {name: idx for idx, name in enumerate(headers)}
+                    status_idx = col_map.get("Status")
+                    prize_idx = col_map.get("Prize")
+
                     for row in reader:
-                        # Ensure row is long enough before accessing indices
                         if len(row) >= 2 and row[0] == project and row[1] == task:
-                            # Preserve the original status when updating.
-                            original_status = row[5] if len(row) > 5 else "To-Do"
+                            original_status = row[status_idx] if status_idx is not None and len(row) > status_idx else "To-Do"
+                            # If user doesn't enter a new prize, keep the old one on update
+                            if prize == "":
+                                original_prize = row[prize_idx] if prize_idx is not None and len(row) > prize_idx else ""
                             updated = True
-                            # The updated row will be added later, so we skip the old one.
                         else:
                             all_rows.append(row)
                 except StopIteration:
                     if not all_rows:
-                        all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
+                        all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status", "Prize"])
         else:
-            all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status"])
+            all_rows.append(["Project", "Task", "Importance", "Urgency", "Deadline", "Status", "Prize"])
 
-        # Append the new or updated row with the correct status.
-        final_entry = new_entry_values_base + [original_status]
+        final_entry = new_entry_values_base + [original_status, original_prize]
         all_rows.append(final_entry)
 
         with open(METADATA_FILE, 'w', newline='') as file:
@@ -401,14 +402,12 @@ class WorkLoggerApp:
             entry_widget.delete(0, tk.END)
 
     def delete_metadata_entry(self):
-        """Deletes a selected task from the metadata file."""
         selected_items = self.meta_tree.selection()
         if not selected_items:
             messagebox.showwarning("No Selection", "Please select a metadata entry to delete.")
             return
             
         selected_item = self.meta_tree.item(selected_items[0])
-        # Identify the row to delete by its Project and Task name.
         project_to_delete = selected_item['values'][1]
         task_to_delete = selected_item['values'][2]
 
@@ -550,7 +549,7 @@ class WorkLoggerApp:
             try:
                 datetime.strptime(new_values[0], "%Y-%m-%d %H:%M")
             except ValueError:
-                messagebox.showerror("Input Error", "Invalid date format. Please use YYYY-MM-DD HH:MM.", parent=edit_win)
+                messagebox.showerror("Input Error", "Invalid date format. Please use<x_bin_42>-MM-DD HH:MM.", parent=edit_win)
                 return
 
             if not new_values[1]:
